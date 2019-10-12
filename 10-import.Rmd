@@ -1,0 +1,22 @@
+---
+title: "10-import"
+output: html_notebook
+---
+
+#Import Libraries
+Importing libraries we are going to be using for this project.
+
+```{r}
+library(readr)
+library(tidyverse)
+library(ggplot2)
+library(scales)
+library(assertr)
+```
+
+#Importing the Dataset
+Importing the dataset
+```{r}
+personas <- read_table2("data/data.csv")
+```
+

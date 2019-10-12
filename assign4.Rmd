@@ -6,29 +6,103 @@ output: html_notebook
 
 For the regular expression exercises, try writing first using regular expressions directly, then try using rverbalexpressions. Provide the code for both. 
 
+```{r}
+library(lubridate)
+library(tidyverse)
+library(stringr)
+library(RVerbalExpressions)
+```
+
 # Part 1
 
 ## R4DS 16.4.5
 
-Create a vector of dates giving the first day of every month in the current year. 
+**Create a vector of dates giving the first day of every month in the current year.**
 
-Write a function that given your birthday (as a date), returns how old you are in years.
+```{r}
+day_1_months <- seq(ymd('2019-01-01'),ymd('2019-12-01'),by='months')
+day_1_months
 
-Write a function that given your birthday, returns the day of the week you were born on. 
+```
+
+
+**Write a function that given your birthday (as a date), returns how old you are in years.**
+
+```{r}
+age <- function(bday){
+  bday <-ymd(bday)
+  return(interval(bday,today())/years(1))
+}
+
+age("1994-11-11")
+
+```
+
+
+**Write a function that given your birthday, returns the day of the week you were born on.**
+
+```{r}
+#Sat,Sun,Mon,Tue,Wed,Thu,Fri
+
+birth_day <- function(bday){
+  week_days = c("Saturday","Sunday","Monday", "Tuesday","Wednesday","Thursday","Friday")
+  return(week_days[wday(ymd(bday))])
+}
+
+
+birth_day("1994-11-11")
+
+```
+
 
 ## R4DS 14.3.2.1
 
-Given the corpus of common words in stringr::words, create regular expressions that find all words that have seven letters or more. (Since this list is long, you might want to use the match argument to str_view() to show only the matching or non-matching words.)
+Given the corpus of common words in stringr::words, create regular expressions that **find all words that have seven letters or more.** (Since this list is long, you might want to use the match argument to str_view() to show only the matching or non-matching words.)
+
+```{r}
+
+words<- stringr::words
+
+
+#string
+str_view(words, ".......", match = T)
+
+```
+
+
 
 ## R4DS 14.3.3.1
 
 Use str_detect to find all words that:
 
-That only contain consonants. (Hint: thinking about matching “not”-vowels.)
+**That only contain consonants. (Hint: thinking about matching “not”-vowels.)**
 
-Empirically verify the rule “i before e except after c”.
+```{r}
 
-Create a regular expression that will match telephone numbers as commonly written in the US. Split this up into multiple expressions as needed.
+words[str_detect(string = words, pattern = "^[^aeiou]+$")]
+
+```
+
+
+
+**Empirically verify the rule “i before e except after c”.**
+```{r}
+
+words[str_detect(string = words, pattern = "cei|[^c]ie")]
+
+```
+
+
+**Create a regular expression that will match telephone numbers as commonly written in the US. Split this up into multiple expressions as needed.**
+
+```{r}
+#input vector contains numbers entered as 
+
+input <- c("217-377-2867", "217.377.2867", "EM7.377.2867", "XYX-234-5467", "666.768-7890")
+bool <-str_detect(input, "^\\d{3}[-\\.]\\d{3}[-\\.]\\d{4}$")
+input[bool]
+
+```
 
 # Part 2
 

@@ -1,0 +1,154 @@
+---
+title: "30-feature-engineering"
+output: html_notebook
+---
+The first thing to do here would be calculate the scores for the big five dimensions.
+
+Calculation the Extraversion, Aggreableness, Neuroticism, Conscientiousness and Openness to experience, scores. 
+The score determine which range you are in.
+
+The test has 10 questions for each trait. (For Extraversion - E1:E10, Agreeableness - A1:A10, etc) Each question has a five point scale going from "0 -  strongly disagree" to "5 -  strongly agree".
+
+These questions would either favor the specfic personality trait, or go against it. In my analysis, I chose to combine the scores from each dimension into a single dimension and then added or substracted the score from a single question, based on if the question supports or goes against a particular trait. 
+
+for example:
+
+E1	I am the life of the party. - Score from this question would be added
+E2	I don't talk a lot. - Score from this question would be substracted
+
+#Creating dimensional scores
+```{r Creation of Dimensional Score}
+
+get_scores <- function(df){
+  #Add asserts here to check if all are not na. If there are NA's, remove them. 
+  #[ADD CODE HERE]
+  df %>% 
+    mutate(extraversion = E1 - E2 + E3 - E4 + E5 - E6 + E7 - E8 + E9 - E10, 
+           neuroticism = N10 + N9 + N8 + N7 + N6 + N5 - N4 + N3 - N2 + N1, 
+           agreeableness = A10 + A9 + A8 - A7 + A6 - A5 + A4 - A3 + A2 - A1, 
+           conscientiousness = C10 + C9 - C8 + C7 - C6 + C5 - C4 + C3 - C2 + C1, 
+           openness = O10 + O9 - O8 + O7 - O6 + O5 - O4 + O3 - O2 + O1) %>% 
+    select(extraversion, neuroticism, agreeableness, conscientiousness, openness,  everything())
+}
+
+#Verify that there are no NA's
+personas %>% 
+  get_scores() %>% 
+  verify(!is.na(c("extraversion", "neuroticism", "agreeableness", "conscientiousness", "openness")))
+
+```
+
+#Normalization
+We will need to normalize these as all of them have different ranges. 
+
+```{r Normalization By Variable Function}
+normalize <- function(x)(x -min(x, na.rm = T))/(max(x, na.rm = T)-min(x, na.rm = T))
+norm_by_var <- function(df, vars){
+  df %>% 
+    mutate_at(vars, list(norm = normalize)) %>% 
+    select(vars, contains('norm'), everything())
+}
+
+#Verifies normalized values created are within the bounds of 0 and 1
+
+personas%>% 
+  dimensional_scores() %>% 
+  norm_by_var(c("extraversion","neuroticism", "agreeableness","conscientiousness", "openness")) %>% 
+  assert(within_bounds(0,1), contains("norm"))
+
+```
+
+#Creating age brackets
+
+We will need to split up the age in a way that is reasonable. Let's first look at the distribution of the age of the people who took the personality assessment. 
+
+```{r Creating an age bracket}
+personas%>% 
+  ggplot(aes(x = age))+
+  geom_histogram()
+
+personas%>% 
+  group_by(age) %>% 
+  summarize(n=n()) %>% 
+  ungroup() %>% 
+  arrange(age, -n)
+```
+From here we can see that the number of observations or subjects of age 53 and older is going to be lower than 100. I think this will reduce the quality of summary measures that we can derive from the splits.
+For this reason, I will cut off the ages past 60. 
+
+```{r}
+personas%>% 
+  dimensional_scores() %>% 
+  norm_by_var(c("extraversion","neuroticism", "agreeableness","conscientiousness", "openness")) %>% 
+  filter(age<=60)
+
+```
+
+
+The brackets I will create will be:
+Bracket 1: 13-18 - Teenasge years
+Bracket 2: 19-21 - Early adulthood
+Bracket 3: 22-25 - Early 20s
+Bracket 4: 26-29 - later 20s
+Bracket 5: 30-34 - Early 30s
+Bracket 6: 35-39 - Late 30s
+Bracket 7: 40-44 - Early 40s
+Bracket 8: 45-49 - Late 40s
+Bracket 9: 50-60 - 50s 
+
+
+
+```{r Age Bracket Function}
+
+bracket_creator <- function(x){
+  if (x >= 13 & x <= 18){"Bracket1"}
+  else if (x >= 19 & x <= 21){"Bracket2"}
+  else if (x >= 22 & x <= 25){"Bracket3"}
+  else if (x >= 26 & x <= 29){"Bracket4"}
+  else if (x >= 30 & x <= 34){"Bracket5"}
+  else if (x >= 35 & x <= 39){"Bracket6"}
+  else if (x >= 40 & x <= 44){"Bracket7"}
+  else if (x >= 45 & x <= 49){"Bracket8"}
+  else {"Bracket9"}
+}
+
+bracket_creator <- Vectorize(bracket_creator)
+
+add_age_bracks <- function(df){
+  df %>% 
+    mutate_at("age", list(brackets = bracket_creator)) %>% 
+    select("age", brackets, everything())
+}
+
+#Verify ages are within set
+personas%>% 
+  dimensional_scores() %>% 
+  norm_by_var(c("extraversion","neuroticism", "agreeableness","conscientiousness", "openness")) %>% 
+  add_age_bracks() %>% 
+  assert(in_set("Bracket1","Bracket2","Bracket3", "Bracket4", "Bracket5", "Bracket6", "Bracket7","Bracket8", "Bracket9"), brackets)
+  
+
+```
+
+#Standardizing scores based on age brackets
+This will give us a better estimation of where each person stands in those dimension with respect to scores of those around their age. 
+```{r}
+scale2 <- function(x, na.rm = T)(x -mean(x, na.rm = na.rm))/sd(x, na.rm = na.rm)
+
+mean_by_bracket <- function(df, vars){
+  df %>% 
+    group_by(brackets) %>% 
+    mutate_at(vars, list(std_brack = scale2)) %>% 
+    ungroup() %>% 
+    select(age, brackets, contains('std_brack'), everything())
+}
+
+#Verify it is not NA
+personas%>% 
+  dimensional_scores() %>% 
+  norm_by_var(c("extraversion","neuroticism", "agreeableness","conscientiousness", "openness")) %>% 
+  add_age_bracks() %>% 
+  mean_by_bracket(c("extraversion","neuroticism", "agreeableness","conscientiousness", "openness")) %>% 
+  verify(!is.na(contains("std_brack")))
+```
+

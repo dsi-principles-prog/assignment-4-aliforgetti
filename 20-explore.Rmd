@@ -1,0 +1,108 @@
+---
+title: "20-explore"
+output: html_notebook
+---
+#Explore the size, dimensionality and structure of the dataset
+
+**Exploring the dimensions of the dataset**
+
+```{r dimensions}
+dim(personas)
+```
+This shows that there are 57 variables and 19,719 observations. 19,719 people have filled out the test.  
+
+
+**Exploring what the dataset looks like.**
+```{r head of data}
+head(personas)
+```
+**From this we can see we have:**
+-race - race of person
+-age - age of the person
+-engnat - whether english language is their native tongue or not
+-hand - right or left handed or both
+-source - it is unclear what this means. The codebook does not contain any information on it either. 
+-country - country they logged in from
+-E1-E10 - Questions measuring extraversion
+-N1-N10 - Questions measuring neuroticism
+-A1-A10 - Questions measuring agreeableness
+-C1-C10 - Questions measuring conscientousness
+-O1-O10 - Questions measuring oppenness to experience
+
+#Predictive Modeling Problem:
+I want to see how likely a person is going to be neurotic based how they score in other dimensions with respect to their age group. 
+
+#Verifying that the ages have been entered correctly
+Age is an important variable as it will be used extensively in our feature engineering. 
+
+It is very likely that the ages that have been entered have been entered wrongly. We will check with the longest living human of age 122. 
+```{r age within bound check initial}
+personas %>% 
+  assert(within_bounds(9,122), age)
+```
+
+It is apparent from this that many people entered their birthyear as their age. We can fix this or we can remove it.
+
+There may be two types of mistyped ages:
+1. years
+2. not year or random numbers
+
+We are going to choose to remove all ages that are not years or random numbers. I don't think anybody younger than 11 should be taking the test.Therefore, I am going to remove all numbers greater than 2005
+```{r filtering age entered as years more than 2005}
+personas <-personas %>% 
+  filter(age<2005)
+
+dim(personas)
+```
+
+We are down by 2 values. These might have been mistyped numbers or not years. 
+
+Lets try and convert years to ages. It is **NOT** going to be an accurate representation as we will not know what year they took the test in so we will not know what age they were when they took the test, but we will guess year to be date to be November 6, 2016. This is based on the google search trend of the "big 5 personality test" phrase. We can see it that the most people searched for this phrase around that time and the second test in the search result is the test that generates our dataset.
+
+```{r changing ages entered as years to ages }
+personas$age[personas$age > 999] <- 2016 - personas$age[personas$age > 999]
+```
+
+```{r age within bound check # 2}
+personas %>% 
+  assert(within_bounds(9,122), age)
+```
+
+It seems there are still some (7) violations of our condition. Some people have entered three digit ages and might have entered a digit two times or entered an extra digit. Let's clean this up.If someone has entered a three digit age, lets make it a two digit age my sectioning it twice and seeing which age makes the most sense. It is more likely for a person to be 18 if they entered 118 and it is more likely for a person to be 26 if they entered 266. However, since this is only 7 data points we can just do this manually instead of writing a complex algorithm to determine what kind of error the person might have made. 
+
+```{r listing remaining incorrect ages}
+personas$age[personas$age >99] 
+
+```
+Age 100 might be real so we will let that one be
+
+```{r fixing remaining ages manually}
+
+personas$age[personas$age == 208] = 28
+
+personas$age[personas$age == 223] = 22
+
+personas$age[personas$age == 211] = 21
+
+personas$age[personas$age == 266] = 26
+
+personas$age[personas$age == 188] = 18
+
+personas$age[personas$age == 191] = 19
+
+personas$age[personas$age == 188] = 18
+
+personas$age[personas$age == 118] = 18
+
+```
+
+Let's finally check again if our bounds are being met:
+```{r}
+personas %>% 
+  assert(within_bounds(9,122), age)
+```
+
+And yes. Our data now has all the "correct" ages. 
+
+
+We are now ready for some feature engineering
