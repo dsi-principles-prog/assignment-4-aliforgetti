@@ -30,7 +30,7 @@ head(personas)
 -O1-O10 - Questions measuring oppenness to experience
 
 #Predictive Modeling Problem:
-I want to see how likely a person is going to be neurotic based how they score in other dimensions with respect to their age group. 
+I want to see how likely a person is going to be neurotic based how they score in other dimensions with respect to their age group or gender identity. I plan on checking on each person ranks on each trait with age and gender in mind and see how that predicts their score in **"Neuroticisim"**. 
 
 #Verifying that the ages have been entered correctly
 Age is an important variable as it will be used extensively in our feature engineering. 
@@ -102,7 +102,16 @@ personas %>%
   assert(within_bounds(9,122), age)
 ```
 
-And yes. Our data now has all the "correct" ages. 
+And yes. Our data now has all the "correct" ages.
+
+#Verify that gender does not have any NA's
+We want to make sure that the gender column does not have any NA's and does not have any entries which are not 0,1,2, or 3
+
+```{r}
+personas %>% 
+  verify(!is.na(gender)) %>% 
+  assert(within_bounds(0,3),gender)
+```
 
 
 We are now ready for some feature engineering

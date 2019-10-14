@@ -2,6 +2,12 @@
 title: "30-feature-engineering"
 output: html_notebook
 ---
+Just as a reminder ~
+
+#Predictive Modeling Problem:
+I want to see how likely a person is going to be neurotic based how they score in other dimensions with respect to their age group or gender identity. I plan on checking on each person ranks on each trait with age and gender in mind and see how that predicts their score in **"Neuroticisim"**. 
+
+**Score Calculation**
 The first thing to do here would be calculate the scores for the big five dimensions.
 
 Calculation the Extraversion, Aggreableness, Neuroticism, Conscientiousness and Openness to experience, scores. 
@@ -52,7 +58,7 @@ norm_by_var <- function(df, vars){
 #Verifies normalized values created are within the bounds of 0 and 1
 
 personas%>% 
-  dimensional_scores() %>% 
+  get_scores() %>% 
   norm_by_var(c("extraversion","neuroticism", "agreeableness","conscientiousness", "openness")) %>% 
   assert(within_bounds(0,1), contains("norm"))
 
@@ -74,11 +80,11 @@ personas%>%
   arrange(age, -n)
 ```
 From here we can see that the number of observations or subjects of age 53 and older is going to be lower than 100. I think this will reduce the quality of summary measures that we can derive from the splits.
-For this reason, I will cut off the ages past 60. 
+For this reason, **I will cut off the ages past 60.**
 
 ```{r}
 personas%>% 
-  dimensional_scores() %>% 
+  get_scores() %>% 
   norm_by_var(c("extraversion","neuroticism", "agreeableness","conscientiousness", "openness")) %>% 
   filter(age<=60)
 
@@ -96,7 +102,7 @@ Bracket 7: 40-44 - Early 40s
 Bracket 8: 45-49 - Late 40s
 Bracket 9: 50-60 - 50s 
 
-
+This provides age cuts which are meaningful enough. 
 
 ```{r Age Bracket Function}
 
@@ -122,7 +128,7 @@ add_age_bracks <- function(df){
 
 #Verify ages are within set
 personas%>% 
-  dimensional_scores() %>% 
+  get_scores() %>% 
   norm_by_var(c("extraversion","neuroticism", "agreeableness","conscientiousness", "openness")) %>% 
   add_age_bracks() %>% 
   assert(in_set("Bracket1","Bracket2","Bracket3", "Bracket4", "Bracket5", "Bracket6", "Bracket7","Bracket8", "Bracket9"), brackets)
@@ -145,10 +151,81 @@ mean_by_bracket <- function(df, vars){
 
 #Verify it is not NA
 personas%>% 
-  dimensional_scores() %>% 
+  get_scores() %>% 
   norm_by_var(c("extraversion","neuroticism", "agreeableness","conscientiousness", "openness")) %>% 
   add_age_bracks() %>% 
   mean_by_bracket(c("extraversion","neuroticism", "agreeableness","conscientiousness", "openness")) %>% 
-  verify(!is.na(contains("std_brack")))
+  verify(!is.na(c('extraversion_std_brack', 'neuroticism_std_brack', 'agreeableness_std_brack', 'conscientiousness_std_brack','openness_std_brack')))
 ```
 
+#Gender Definitions
+This is going to go a little bit deeper and help us compare the scores based on age brackets as well as gender. 
+
+Let's start by creating a new column called `ngender` which defines the genders as:
+1=Male, 2=Female, 3=Other (0=missed)
+```{r}
+gendrify <- function(x){
+  if (x == 1){"Male"}
+  else if (x == 2){"Female"}
+  else if (x == 3){"Other"}
+  else {"Missed"}
+}
+
+gendrify <- Vectorize(gendrify)
+
+add_gender_defs <- function(df){
+  df %>% 
+    mutate_at("gender", list(gender_defined = gendrify)) %>% 
+    select("gender", gender_defined, everything())
+}
+
+#Checking if the any values were missed.
+
+personas %>% 
+  add_gender_defs() %>% 
+  assert(in_set("Male","Female","Other","Missed"), gender_defined)
+
+```
+
+We can remove all the values that are"Missed" from our data as it will not add anything to the analysis
+```{r}
+personas %>% 
+  add_gender_defs() %>% 
+  filter(gender_defined != "Missed")
+```
+
+#Standardize by age bracket and then by gender
+We can now find the dimensional scores by first standardizing by age and then standardizing by gender. Both can be used to see if either of those factors have any affect on how a person scores on neuroticism.
+```{r}
+scale2 <- function(x, na.rm = T)(x -mean(x, na.rm = na.rm))/sd(x, na.rm = na.rm)
+
+mean_by_gender <- function(df, vars){
+  df %>% 
+    group_by(gender) %>% 
+    mutate_at(vars, list(std_gender = scale2)) %>% 
+    ungroup() %>% 
+    select(age, brackets, contains('std_gender'), everything())
+}
+
+dimensions <- c("extraversion","neuroticism", "agreeableness","conscientiousness", "openness")
+dimensions_std_gender <- c("extraversion_std_gender",
+                           "neuroticism_std_gender", 
+                           "agreeableness_std_gender",
+                           "conscientiousness_std_gender", 
+                           "openness_std_gender")
+
+#Verifying the new column with scores standardized against gender do not have any NA's
+personas%>% 
+  get_scores() %>% 
+  norm_by_var(dimensions) %>% 
+  add_age_bracks() %>% 
+  mean_by_bracket(dimensions) %>% 
+  add_gender_defs() %>% 
+  filter(gender_defined != "Missed") %>% 
+  mean_by_gender(dimensions) %>% 
+  verify(!is.na(dimensions_std_gender))
+
+```
+
+#Explanations
+We can now see how each individual ranks in scores of ectraversion, agreeableness, openness and conscientiosness, based on their age bracked and their gender. We can then see how those scores have any effect on how that individual scores in neuroticism. We can now test and see if a model to predict neuroticism using these factors would be viable. 
