@@ -67,6 +67,16 @@ words<- stringr::words
 #string
 str_view(words, ".......", match = T)
 
+#verbal expressions
+x <- rx() %>% 
+  rx_start_of_line() %>% 
+  rx_alpha() %>% 
+  rx_repeat_previous(7) %>% 
+  print()
+
+words[grepl(x, words)]
+
+
 ```
 
 
@@ -78,8 +88,18 @@ Use str_detect to find all words that:
 **That only contain consonants. (Hint: thinking about matching “not”-vowels.)**
 
 ```{r}
-
+#string
 words[str_detect(string = words, pattern = "^[^aeiou]+$")]
+
+#verbal expressions
+x <- rx() %>% 
+  rx_start_of_line() %>% 
+  rx_anything_but('aeiou') %>%
+  rx_one_or_more() %>% 
+  rx_end_of_line() %>% 
+  print()
+
+words[grepl(x, words)]
 
 ```
 
@@ -87,8 +107,21 @@ words[str_detect(string = words, pattern = "^[^aeiou]+$")]
 
 **Empirically verify the rule “i before e except after c”.**
 ```{r}
-
+#string
 words[str_detect(string = words, pattern = "cei|[^c]ie")]
+
+#verbal expressions ~  Maybe? This shows the violations of the rule as well.
+
+y <- rx() %>% 
+  rx_anything_but('c') %>% 
+  rx_find('ie')
+
+x <- rx() %>% 
+  rx_either_of('cei', y)
+  
+
+words[grepl(x, words)]
+
 
 ```
 
